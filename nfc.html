@@ -3,106 +3,218 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>Lectura NFC (Web NFC)</title>
-        <style>
-            body {
-                font-family: system-ui, sans-serif;
-                margin: 2rem;
-            }
-            button {
-                padding: 0.8rem 1.2rem;
-                font-size: 1rem;
-                cursor: pointer;
-            }
-            #log {
-                margin-top: 1rem;
-                white-space: pre-wrap;
-                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-            }
-        </style>
+        <title>Museo Interactivo - NFC</title>
+        <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
-        <h1>Demo: leer NFC y mostrar ID en consola</h1>
-        <p>Presiona el botón y acerca una tarjeta/etiqueta NFC al teléfono.</p>
-        <button id="start">Iniciar lectura NFC</button>
-        <div id="log"></div>
+        <header class="site-header">
+            <h1>Museo Interactivo</h1>
+            <p class="subtitle">Acerca una etiqueta NFC para abrir la obra</p>
+        </header>
+
+        <main id="main">
+            <section class="actions" id="statusArea" aria-live="polite">
+                <!-- Estado en vivo -->
+                <span class="pill"
+                    >NFC: <strong id="nfcStatus">inactivo</strong></span
+                >
+                <span class="pill" id="lastRead" hidden
+                    >último: <span id="lastKey"></span
+                ></span>
+            </section>
+        </main>
+
+        <!-- Viewer: modal full-screen (responsive) -->
+        <section class="viewer" id="viewer" aria-hidden="true">
+            <button class="btn btn-fab" id="btnVolver" aria-label="Volver">
+                ↩
+            </button>
+            <div class="viewer-grid">
+                <figure class="art-figure">
+                    <img id="artImg" alt="Obra seleccionada" />
+                    <figcaption id="artCaption" class="sr-only">
+                        Imagen de la obra seleccionada
+                    </figcaption>
+                </figure>
+                <div class="meta">
+                    <h2 id="artTitle"></h2>
+                    <p id="artDesc"></p>
+                    <audio id="artAudio" preload="auto" controls></audio>
+                    <div class="pill-info" id="artInfo"></div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="site-footer">
+            <small>Prototipo NFC • Solo Chrome Android + HTTPS</small>
+        </footer>
 
         <script>
-            const btn = document.getElementById("start");
-            const logEl = document.getElementById("log");
+            // ===== 1) Contenido de obras (igual al ejemplo anterior) =====
+            const ARTWORKS = {
+                1: {
+                    title: "Obra 1 — Ejemplo",
+                    img: "Imagenes/obra1.jpeg",
+                    audio: "Audios/obra1.mp3",
+                    description:
+                        "Descripción breve de la obra 1. Autor, año, técnica, contexto.",
+                    info: ["óleo sobre lienzo", "1889", "Van Gogh"],
+                },
+                2: {
+                    title: "Obra 2 — Ejemplo",
+                    img: "Imagenes/obra2.jpeg",
+                    audio: "Audios/obra2.mp3",
+                    description: "Descripción breve de la obra 2.",
+                    info: ["temple", "1503", "Leonardo"],
+                },
+            };
 
-            function log(msg) {
-                console.log(msg);
-                logEl.textContent += msg + "\n";
+            // ===== 2) Mapeo NFC -> obra =====
+            // Puedes mapear por UID del tag (serialNumber) o por texto/URL NDEF
+            // - Claves posibles:
+            //   - "uid:04FE12AB34"  (UID exacto tal como lo entregue el dispositivo)
+            //   - "text:MONA"       (primer registro NDEF de tipo 'text')
+            //   - "url:https://mi/obra-1" (primer registro NDEF de tipo 'url')
+            const NFC_MAP = {
+                "uid:a2:94:eb:89": "obra-1",
+                "uid:92:57:95:81": "obra-2",
+                "url:https://mi/obra-1": "obra-1",
+                // agrega tus pares clave -> obraId
+            };
+
+            // ===== 3) UI refs =====
+            const viewerEl = document.getElementById("viewer");
+            const artImg = document.getElementById("artImg");
+            const artTitle = document.getElementById("artTitle");
+            const artDesc = document.getElementById("artDesc");
+            const artAudio = document.getElementById("artAudio");
+            const artInfo = document.getElementById("artInfo");
+            const btnVolver = document.getElementById("btnVolver");
+
+            const nfcStatus = document.getElementById("nfcStatus");
+            const lastRead = document.getElementById("lastRead");
+            const lastKeyEl = document.getElementById("lastKey");
+
+            // ===== 4) Lógica de abrir obra =====
+            async function openArtworkById(obraId) {
+                const art = ARTWORKS[obraId];
+                if (!art) return;
+
+                artImg.src = art.img;
+                artImg.alt = art.title;
+                artTitle.textContent = art.title;
+                artDesc.textContent = art.description;
+                artAudio.src = art.audio;
+                artInfo.innerHTML = (art.info || [])
+                    .map((x) => `<span class="pill">${x}</span>`)
+                    .join("");
+
+                viewerEl.classList.add("visible");
+                viewerEl.setAttribute("aria-hidden", "false");
+
+                try {
+                    await artAudio.play();
+                } catch {}
             }
 
-            async function startNFC() {
+            function closeViewer() {
+                artAudio.pause();
+                viewerEl.classList.remove("visible");
+                viewerEl.setAttribute("aria-hidden", "true");
+            }
+
+            btnVolver.addEventListener("click", closeViewer);
+
+            // ===== 5) Web NFC: escaneo continuo =====
+            let ndef;
+            let lastKey = null;
+            let lastAt = 0;
+            const DUP_MS = 1500; // ignora lecturas idénticas durante este tiempo
+
+            function setStatus(txt) {
+                nfcStatus.textContent = txt;
+            }
+
+            function keyFromEvent(ev) {
+                // 1) UID si está disponible
+                if (ev.serialNumber) return `uid:${ev.serialNumber}`;
+
+                // 2) Primer registro NDEF (text/url) si existe
+                const msg = ev.message;
+                if (msg && msg.records && msg.records.length) {
+                    const r = msg.records[0];
+                    try {
+                        if (r.recordType === "text") {
+                            const dec = new TextDecoder(
+                                r.encoding || "utf-8",
+                            ).decode(r.data);
+                            return `text:${dec.trim()}`;
+                        } else if (r.recordType === "url") {
+                            const url = new TextDecoder().decode(r.data).trim();
+                            return `url:${url}`;
+                        }
+                    } catch {}
+                }
+
+                return null;
+            }
+
+            async function startScan() {
                 if (!("NDEFReader" in window)) {
-                    log(
-                        "⚠️ Este navegador no soporta Web NFC (NDEFReader). Usa Chrome en Android y HTTPS.",
+                    setStatus("no soportado");
+                    alert(
+                        "Este navegador no soporta Web NFC. Usa Chrome en Android y sirve por HTTPS.",
                     );
                     return;
                 }
 
                 try {
-                    const ndef = new NDEFReader();
+                    ndef = new NDEFReader();
+                    await ndef.scan(); // requiere gesto del usuario en muchos casos (pero Chrome permite iniciar en interacción previa)
+                    setStatus("escaneando");
+                    ndef.onreading = async (event) => {
+                        const key = keyFromEvent(event);
+                        if (!key) return;
 
-                    // Inicia el escaneo (requiere gesto del usuario)
-                    await ndef.scan();
-                    log("✅ Escaneo NFC iniciado. Acerca una etiqueta…");
+                        // Debounce de lecturas idénticas
+                        const now = Date.now();
+                        if (key === lastKey && now - lastAt < DUP_MS) return;
+                        lastKey = key;
+                        lastAt = now;
 
-                    // Evento cuando se lee un tag
-                    ndef.onreading = (event) => {
-                        const { serialNumber, message } = event;
+                        // Mostrar último
+                        lastRead.hidden = false;
+                        lastKeyEl.textContent = key;
 
-                        // El "serialNumber" es el identificador único del tag cuando el dispositivo lo expone
-                        if (serialNumber) {
-                            log(`🆔 ID/UID del tag: ${serialNumber}`);
-                        } else {
-                            log(
-                                "ℹ️ Tag leído, pero el ID/UID no está disponible en este dispositivo.",
-                            );
+                        const obraId = NFC_MAP[key];
+                        if (obraId) {
+                            await openArtworkById(obraId);
                         }
-
-                        // Registros NDEF (opcional: mostramos lo que venga)
-                        if (message && message.records) {
-                            message.records.forEach((record, i) => {
-                                log(
-                                    `📄 Registro ${i + 1}: tipo=${record.recordType}, mediaType=${record.mediaType || "—"}`,
-                                );
-                                try {
-                                    if (record.recordType === "text") {
-                                        const text = new TextDecoder(
-                                            record.encoding || "utf-8",
-                                        ).decode(record.data);
-                                        log(`   texto="${text}"`);
-                                    } else if (record.recordType === "url") {
-                                        const url = new TextDecoder().decode(
-                                            record.data,
-                                        );
-                                        log(`   url=${url}`);
-                                    }
-                                } catch (e) {
-                                    log(
-                                        "   (no se pudo decodificar los datos del registro)",
-                                    );
-                                }
-                            });
-                        }
-
-                        log("—");
                     };
-
                     ndef.onreadingerror = () => {
-                        log("❌ Error al leer el tag. Intenta nuevamente.");
+                        setStatus("error lectura");
                     };
                 } catch (err) {
-                    // Errores típicos: permiso denegado, no seguro, no gesto de usuario, etc.
-                    log(`❌ No se pudo iniciar la lectura NFC: ${err.message}`);
+                    setStatus("error");
+                    console.warn("Error NFC:", err);
+                    // reintenta brevemente si es posible
+                    setTimeout(() => startScan().catch(() => {}), 2000);
                 }
             }
 
-            btn.addEventListener("click", startNFC);
+            // Arranca el escaneo al cargar (si el navegador lo permite).
+            // Para máxima compatibilidad, puedes gatearlo detrás de un clic inicial si hace falta:
+            document.addEventListener("DOMContentLoaded", () => {
+                startScan();
+            });
+
+            // Reintento al volver al tab (Android a veces pausa NFC)
+            document.addEventListener("visibilitychange", () => {
+                if (document.visibilityState === "visible" && ndef) {
+                    // intentar reiniciar el escaneo si se detuvo
+                    startScan();
+                }
+            });
         </script>
     </body>
 </html>
