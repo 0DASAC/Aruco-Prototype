@@ -1,0 +1,246 @@
+:root {
+    --bg: #0f1221;
+    --card: #171a2b;
+    --muted: #8b90a8;
+    --text: #e9ecf1;
+    --primary: #6ea8fe;
+    --accent: #ff7369;
+    --ring: rgba(110, 168, 254, 0.5);
+    --gap: 12px;
+    --radius: 16px;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+* {
+    box-sizing: border-box;
+}
+html,
+body {
+    height: 100%;
+}
+body {
+    margin: 0;
+    font-family:
+        system-ui,
+        -apple-system,
+        Segoe UI,
+        Roboto,
+        sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(1200px 600px at 10% -10%, #1b1f35 0%, transparent 60%),
+        radial-gradient(1200px 600px at 110% -20%, #1a203d 0%, transparent 60%),
+        var(--bg);
+    padding: 16px;
+}
+
+/* Cuando el viewer está abierto, oculta por CSS cualquier preview marcado */
+body.viewer-open [data-protobject-preview] {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+.site-header {
+    text-align: center;
+    margin: 8px 0 18px;
+}
+.site-header h1 {
+    margin: 0 0 6px;
+    font-size: clamp(20px, 4vw, 32px);
+    letter-spacing: 0.3px;
+}
+.subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+/* Zona de botones */
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap);
+    justify-content: center;
+    margin: 12px auto 18px;
+    max-width: 900px;
+}
+
+.btn {
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 0.06s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+    user-select: none;
+    touch-action: manipulation;
+    font-size: 1rem;
+}
+.btn:active {
+    transform: translateY(1px) scale(0.99);
+}
+
+.btn-primary {
+    color: #0a152b;
+    background: linear-gradient(180deg, #a4c6ff, #6ea8fe 60%, #5a96f0);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        0 6px 18px rgba(110, 168, 254, 0.35);
+}
+.btn-chip {
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-weight: 600;
+}
+
+/* Viewer como modal full-screen en mobile */
+.viewer {
+    display: none;
+    position: fixed; /* modal */
+    inset: 0;
+    z-index: 9999;
+    background:
+        linear-gradient(180deg, rgba(6, 10, 20, 0.86), rgba(8, 12, 26, 0.92)),
+        color-mix(in srgb, var(--card) 92%, #0b0e1a 8%);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 14px 12px 22px;
+    overflow: auto; /* scroll propio del modal */
+}
+.viewer.visible {
+    display: block;
+}
+
+.viewer-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr; /* mobile: 1 col */
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+    .viewer {
+        padding: 20px 20px 28px;
+    }
+    .viewer-grid {
+        grid-template-columns: minmax(320px, 1fr) 1fr; /* desktop: 2 cols */
+        gap: 24px;
+    }
+}
+
+.art-figure {
+    margin: 0;
+    background: #0c1020;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.art-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.meta h2 {
+    margin: 4px 0 8px;
+    font-size: clamp(18px, 3.6vw, 28px);
+}
+.meta p {
+    margin: 8px 0 14px;
+    color: #d4d9e6;
+    line-height: 1.5;
+    font-size: 1rem;
+}
+audio {
+    width: 100%;
+    margin-top: 6px;
+    filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.2));
+}
+
+.pill-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+.pill {
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #202742;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #cfd6ea;
+    font-size: 0.9rem;
+}
+
+/* Botón flotante Volver */
+.btn-fab {
+    position: sticky; /* queda visible al hacer scroll */
+    top: 8px;
+    left: 8px;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 50%;
+    background: #ff887f;
+    color: #2a0b0b;
+    font-size: 20px;
+    line-height: 44px;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(255, 136, 127, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    margin-bottom: 8px;
+}
+.btn-fab:focus {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+}
+
+/* Botón Connect de Protobject (si existe) */
+#ProtobjectPlusButton {
+    width: 104px !important;
+    height: 40px !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+}
+#ProtobjectPlusButton:after {
+    content: " Conectar";
+}
+
+/* Ocultar solo el preview cuando se requiera */
+[data-protobject-preview].hidden {
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
+
+/* utilidades */
+.sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.site-footer {
+    text-align: center;
+    margin: 14px 0 4px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}

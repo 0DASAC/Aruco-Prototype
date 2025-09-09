@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Lectura NFC (Web NFC)</title>
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+                margin: 2rem;
+            }
+            button {
+                padding: 0.8rem 1.2rem;
+                font-size: 1rem;
+                cursor: pointer;
+            }
+            #log {
+                margin-top: 1rem;
+                white-space: pre-wrap;
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Demo: leer NFC y mostrar ID en consola</h1>
+        <p>Presiona el botón y acerca una tarjeta/etiqueta NFC al teléfono.</p>
+        <button id="start">Iniciar lectura NFC</button>
+        <div id="log"></div>
+
+        <script>
+            const btn = document.getElementById("start");
+            const logEl = document.getElementById("log");
+
+            function log(msg) {
+                console.log(msg);
+                logEl.textContent += msg + "\n";
+            }
+
+            async function startNFC() {
+                if (!("NDEFReader" in window)) {
+                    log(
+                        "⚠️ Este navegador no soporta Web NFC (NDEFReader). Usa Chrome en Android y HTTPS.",
+                    );
+                    return;
+                }
+
+                try {
+                    const ndef = new NDEFReader();
+
+                    // Inicia el escaneo (requiere gesto del usuario)
+                    await ndef.scan();
+                    log("✅ Escaneo NFC iniciado. Acerca una etiqueta…");
+
+                    // Evento cuando se lee un tag
+                    ndef.onreading = (event) => {
+                        const { serialNumber, message } = event;
+
+                        // El "serialNumber" es el identificador único del tag cuando el dispositivo lo expone
+                        if (serialNumber) {
+                            log(`🆔 ID/UID del tag: ${serialNumber}`);
+                        } else {
+                            log(
+                                "ℹ️ Tag leído, pero el ID/UID no está disponible en este dispositivo.",
+                            );
+                        }
+
+                        // Registros NDEF (opcional: mostramos lo que venga)
+                        if (message && message.records) {
+                            message.records.forEach((record, i) => {
+                                log(
+                                    `📄 Registro ${i + 1}: tipo=${record.recordType}, mediaType=${record.mediaType || "—"}`,
+                                );
+                                try {
+                                    if (record.recordType === "text") {
+                                        const text = new TextDecoder(
+                                            record.encoding || "utf-8",
+                                        ).decode(record.data);
+                                        log(`   texto="${text}"`);
+                                    } else if (record.recordType === "url") {
+                                        const url = new TextDecoder().decode(
+                                            record.data,
+                                        );
+                                        log(`   url=${url}`);
+                                    }
+                                } catch (e) {
+                                    log(
+                                        "   (no se pudo decodificar los datos del registro)",
+                                    );
+                                }
+                            });
+                        }
+
+                        log("—");
+                    };
+
+                    ndef.onreadingerror = () => {
+                        log("❌ Error al leer el tag. Intenta nuevamente.");
+                    };
+                } catch (err) {
+                    // Errores típicos: permiso denegado, no seguro, no gesto de usuario, etc.
+                    log(`❌ No se pudo iniciar la lectura NFC: ${err.message}`);
+                }
+            }
+
+            btn.addEventListener("click", startNFC);
+        </script>
+    </body>
+</html>
