@@ -1,52 +1,229 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Lamp</title>
+        <title>Museo Interactivo - MVP</title>
+        <style>
+            :root {
+                --gap: 12px;
+            }
+            body {
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    sans-serif;
+                margin: 16px;
+            }
+            h1 {
+                text-align: center;
+                margin: 12px 0 4px;
+            }
+            .actions {
+                display: flex;
+                gap: var(--gap);
+                flex-wrap: wrap;
+                justify-content: center;
+                margin: 12px 0 20px;
+            }
+            .btn {
+                padding: 10px 14px;
+                border: 0;
+                border-radius: 10px;
+                cursor: pointer;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+                font-weight: 600;
+                transition: transform 0.05s ease;
+            }
+            .btn:active {
+                transform: translateY(1px);
+            }
+            .btn-primary {
+                background: #2b7cff;
+                color: white;
+            }
+            .btn-secondary {
+                background: #e74c3c;
+                color: white;
+            }
+
+            .viewer {
+                display: none;
+                max-width: 1100px;
+                margin: 0 auto;
+                gap: 16px;
+                grid-template-columns: minmax(280px, 1fr) 1fr;
+                align-items: start;
+            }
+            .viewer.visible {
+                display: grid;
+            }
+            .viewer img {
+                width: 100%;
+                height: auto;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+            }
+            .meta h2 {
+                margin: 0 0 8px;
+            }
+            .meta p {
+                margin: 6px 0 14px;
+                line-height: 1.45;
+            }
+            .controls {
+                display: flex;
+                gap: 8px;
+                margin-top: 14px;
+            }
+
+            #ProtobjectPlusButton {
+                width: 90px !important;
+            }
+            #ProtobjectPlusButton:after {
+                content: " Conectar";
+            }
+
+            [data-protobject-preview].hidden {
+                visibility: hidden !important;
+                pointer-events: none !important;
+                width: 0 !important;
+                height: 0 !important;
+            }
+        </style>
     </head>
     <body>
         <script src="https://app.protobject.com/framework/p.js"></script>
         <script src="config.js"></script>
 
-        <h1
-            style="
-                font-family: sans-serif;
-                text-align: center;
-                margin-top: 20px;
-            "
-        >
-            This is prototype
-        </h1>
-        <script>
-            Protobject.Aruco.start(200, 0);
+        <h1>Este es un prototipo</h1>
 
-            Protobject.Aruco.onData((data) => {
-                //console.log("Marker Data: ", data);
-                if (data["1"]) {
-                    console.log("test de codigo 1");
-                }
-                if (data["2"]) {
-                    console.log(
-                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-                    );
+        <div class="actions" id="actions"></div>
+
+        <section class="viewer" id="viewer">
+            <img id="artImg" alt="Obra seleccionada" />
+            <div class="meta">
+                <h2 id="artTitle"></h2>
+                <p id="artDesc"></p>
+                <audio id="artAudio" preload="auto" controls></audio>
+                <div class="controls">
+                    <!-- Aquí está el botón de volver -->
+                    <button class="btn btn-secondary" id="btnVolver">
+                        ↩ Volver a la cámara
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <script>
+            const ARTWORKS = {
+                1: {
+                    title: "Obra 1 — Ejemplo",
+                    img: "assets/obra1.jpg",
+                    audio: "assets/obra1.mp3",
+                    description: "Descripción breve de la obra 1.",
+                },
+                2: {
+                    title: "Obra 2 — Ejemplo",
+                    img: "assets/obra2.jpg",
+                    audio: "assets/obra2.mp3",
+                    description: "Descripción breve de la obra 2.",
+                },
+            };
+
+            const actionsEl = document.getElementById("actions");
+            const viewerEl = document.getElementById("viewer");
+            const artImg = document.getElementById("artImg");
+            const artTitle = document.getElementById("artTitle");
+            const artDesc = document.getElementById("artDesc");
+            const artAudio = document.getElementById("artAudio");
+            const btnVolver = document.getElementById("btnVolver");
+
+            const shown = new Set();
+            let previewEl = null;
+
+            const obs = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    for (const node of m.addedNodes) {
+                        if (!(node instanceof HTMLElement)) continue;
+                        const candidate = node.matches?.("video,canvas")
+                            ? node
+                            : node.querySelector?.("video,canvas");
+                        if (candidate && !previewEl) {
+                            previewEl = candidate;
+                            previewEl.setAttribute(
+                                "data-protobject-preview",
+                                "1",
+                            );
+                        }
+                    }
                 }
             });
-            Protobject.Aruco.showPreview({
-                top: 50,
-                left: 50,
-                width: 640,
-                height: 480,
+            obs.observe(document.body, { childList: true, subtree: true });
+
+            function startPreviewSafely() {
+                try {
+                    Protobject.Aruco.start(200, 0);
+                } catch {}
+                try {
+                    Protobject.Aruco.showPreview({
+                        top: 50,
+                        left: 50,
+                        width: 640,
+                        height: 480,
+                    });
+                } catch {}
+                if (previewEl) previewEl.classList.remove("hidden");
+            }
+
+            function stopPreviewSafely() {
+                try {
+                    if (Protobject.Aruco.stop) Protobject.Aruco.stop();
+                } catch {}
+                document.querySelectorAll("video").forEach((v) => {
+                    if (v.srcObject)
+                        v.srcObject.getTracks().forEach((t) => t.stop());
+                });
+                if (previewEl) previewEl.classList.add("hidden");
+            }
+
+            function ensureButtonFor(id) {
+                if (!ARTWORKS[id] || shown.has(id)) return;
+                const btn = document.createElement("button");
+                btn.className = "btn btn-primary";
+                btn.textContent = `Ver obra #${id}`;
+                btn.addEventListener("click", () => openArtwork(id));
+                actionsEl.appendChild(btn);
+                shown.add(id);
+            }
+
+            async function openArtwork(id) {
+                const art = ARTWORKS[id];
+                if (!art) return;
+                artImg.src = art.img;
+                artImg.alt = art.title;
+                artTitle.textContent = art.title;
+                artDesc.textContent = art.description;
+                artAudio.src = art.audio;
+                viewerEl.classList.add("visible");
+                stopPreviewSafely();
+                try {
+                    await artAudio.play();
+                } catch {}
+            }
+
+            btnVolver.addEventListener("click", () => {
+                artAudio.pause();
+                viewerEl.classList.remove("visible");
+                startPreviewSafely();
+            });
+
+            startPreviewSafely();
+            Protobject.Aruco.onData((data) => {
+                Object.keys(data).forEach((id) => ensureButtonFor(id));
             });
         </script>
     </body>
-    <style>
-        #ProtobjectPlusButton {
-            width: 80px !important;
-        }
-
-        #ProtobjectPlusButton:after {
-            content: " Connect";
-        }
-    </style>
 </html>
