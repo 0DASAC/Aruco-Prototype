@@ -1,343 +1,312 @@
 <!doctype html>
 <html lang="es">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>Museo Interactivo - NFC</title>
-        <link rel="stylesheet" href="styles.css" />
-    </head>
-    <body>
-        <header class="site-header">
-            <h1>Museo Interactivo</h1>
-            <p class="subtitle">Acerca una etiqueta NFC para abrir la obra</p>
-        </header>
 
-        <main id="main">
-            <section class="actions" id="statusArea" aria-live="polite">
-                <!-- Estado en vivo -->
-                <span class="pill"
-                    >NFC: <strong id="nfcStatus">inactivo</strong></span
-                >
-                <span class="pill" id="lastRead" hidden
-                    >último: <span id="lastKey"></span
-                ></span>
-                <span class="pill" id="speedPill">
-                    Velocidad prom.: <strong id="avgSpeed">0.0</strong> m/s
-                </span>
-            </section>
-        </main>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Museo Interactivo - NFC</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
 
-        <!-- Viewer: modal full-screen (responsive) -->
-        <section class="viewer" id="viewer" aria-hidden="true">
-            <button class="btn btn-fab" id="btnVolver" aria-label="Volver">
-                ↩
-            </button>
-            <div class="viewer-grid">
-                <figure class="art-figure">
-                    <img id="artImg" alt="Obra seleccionada" />
-                    <figcaption id="artCaption" class="sr-only">
-                        Imagen de la obra seleccionada
-                    </figcaption>
-                </figure>
-                <div class="meta">
-                    <h2 id="artTitle"></h2>
-                    <p id="artDesc"></p>
-                    <audio id="artAudio" preload="auto" controls></audio>
-                    <div class="pill-info" id="artInfo"></div>
-                </div>
-            </div>
+<body>
+    <header class="site-header">
+        <h1>Museo Interactivo</h1>
+        <p class="subtitle">Acerca una etiqueta NFC para abrir la obra</p>
+    </header>
+
+    <main id="main">
+        <section class="actions" id="statusArea" aria-live="polite">
+            <span class="pill">NFC: <strong id="nfcStatus">inactivo</strong></span>
+            <span class="pill" id="lastRead" hidden>último: <span id="lastKey"></span></span>
+            <span class="pill" id="speedPill">
+                Velocidad prom.: <strong id="avgSpeed">0.0</strong> m/s
+            </span>
         </section>
+    </main>
 
-        <footer class="site-footer">
-            <small>Prototipo NFC • Solo Chrome Android + HTTPS</small>
-        </footer>
+    <!-- Viewer: modal full-screen (responsive) -->
+    <section class="viewer" id="viewer" aria-hidden="true">
+        <button class="btn btn-fab" id="btnVolver" aria-label="Volver">
+            ↩
+        </button>
+        <div class="viewer-grid">
+            <figure class="art-figure">
+                <img id="artImg" alt="Obra seleccionada" />
+                <figcaption id="artCaption" class="sr-only">
+                    Imagen de la obra seleccionada
+                </figcaption>
+            </figure>
+            <div class="meta">
+                <h2 id="artTitle"></h2>
+                <p id="artDesc"></p>
+                <audio id="artAudio" preload="auto" controls></audio>
+                <div class="pill-info" id="artInfo"></div>
+            </div>
+        </div>
+    </section>
 
-        <!-- Protobject (OBLIGATORIO para Acceleration) -->
-        <script src="https://app.protobject.com/framework/p.js"></script>
-        <script src="config.js"></script>
+    <footer class="site-footer">
+        <small>Prototipo NFC • Solo Chrome Android + HTTPS</small>
+    </footer>
 
-        <script>
-            // ===== 1) Contenido de obras (igual al ejemplo anterior) =====
-            const ARTWORKS = {
-                1: {
-                    title: "Obra 1 — Ejemplo",
-                    img: "Imagenes/obra1.jpeg",
-                    audio: "Audios/obra1.mp3",
-                    descriptions: {
-                        short: "Una pieza que destaca por su composición equilibrada y el uso expresivo del color.",
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+    <script src="artworks.js"></script>
 
-                        medium: "Esta obra presenta una escena cuidadosamente construida, donde la composición y el color se combinan para transmitir una sensación de movimiento y profundidad. El artista utiliza contrastes suaves para dirigir la mirada del espectador hacia los elementos centrales de la pieza.",
 
-                        long: "En esta obra, el artista desarrolla un lenguaje visual que combina técnica, simbolismo y narrativa. La composición se articula a partir de líneas diagonales que generan dinamismo, mientras que la paleta cromática —basada en tonos cálidos y matices complementarios— crea una atmósfera envolvente. La iluminación, sutil pero precisa, refuerza la tridimensionalidad de las figuras y resalta su presencia emocional. La pieza ha sido interpretada como una reflexión sobre la percepción humana y la relación entre luz, color y memoria. Su ejecución detallada y la coherencia entre forma y contenido la convierten en un ejemplo representativo del periodo más experimental del autor.",
-                    },
-                    info: ["óleo sobre lienzo", "1889", "Van Gogh"],
-                },
-                2: {
-                    title: "Obra 2 — Ejemplo",
-                    img: "Imagenes/obra2.jpeg",
-                    audio: "Audios/obra2.mp3",
-                    descriptions: {
-                        short: "Una obra icónica reconocida por su sutileza, técnica refinada y equilibrio visual.",
+    <script>
+        const SPEED_THRESHOLDS = {
+            short: 5.0,
+            medium: 1.0,
+        };
 
-                        medium: "En esta pieza, el artista desarrolla un tratamiento minucioso del detalle y un uso muy controlado de la luz. La escena combina elementos figurativos con una atmósfera contemplativa que invita al espectador a detenerse en las texturas, gestos y contrastes.",
+        const NFC_MAP = {
+            "uid:a2:94:eb:89": 1,
+            "uid:92:57:95:81": 2,
+            "uid:2f:d4:b2:8d": 3,
+            "uid:3f:d7:4d:68": 4,
+            "url:https://mi/obra-1": 1,
+        };
 
-                        long: "Considerada una de las composiciones más representativas de su autor, esta obra destaca por la precisión técnica y la profundidad conceptual. El tratamiento de la luz —proveniente de una fuente lateral cuidadosamente sugerida— genera un juego de sombras que aporta volumen y dramatismo. Los detalles minuciosamente trabajados revelan un estudio exhaustivo de la anatomía, los tejidos y los materiales presentes en la escena. Más allá del virtuosismo técnico, la obra invita a una lectura simbólica: la postura de la figura central, los elementos secundarios y la construcción del espacio parecen dialogar sobre temas como la identidad, la introspección y la fragilidad humana. Su impacto radica tanto en la maestría pictórica como en la capacidad de provocar reflexión profunda en el espectador.",
-                    },
-                    info: ["temple", "1503", "Leonardo"],
-                },
-            };
+        const viewerEl = document.getElementById("viewer");
+        const artImg = document.getElementById("artImg");
+        const artTitle = document.getElementById("artTitle");
+        const artDesc = document.getElementById("artDesc");
+        const artAudio = document.getElementById("artAudio");
+        const artInfo = document.getElementById("artInfo");
+        const btnVolver = document.getElementById("btnVolver");
 
-            const SPEED_THRESHOLDS = {
-                short: 3.0, // > 1.5 m/s → descripción corta
-                medium: 1.0, // 0.5–1.5 m/s → descripción mediana
-                long: 1.0, // < 0.5 m/s → descripción larga
-            };
+        const nfcStatus = document.getElementById("nfcStatus");
+        const lastRead = document.getElementById("lastRead");
+        const lastKeyEl = document.getElementById("lastKey");
 
-            // ===== 2) Mapeo NFC -> obra =====
-            // Puedes mapear por UID del tag (serialNumber) o por texto/URL NDEF
-            // - Claves posibles:
-            //   - "uid:04FE12AB34"  (UID exacto tal como lo entregue el dispositivo)
-            //   - "text:MONA"       (primer registro NDEF de tipo 'text')
-            //   - "url:https://mi/obra-1" (primer registro NDEF de tipo 'url')
-            const NFC_MAP = {
-                "uid:a2:94:eb:89": 1,
-                "uid:92:57:95:81": 2,
-                "url:https://mi/obra-1": 1, // ✔ ahora sí coincide
-            };
+        async function openArtworkById(obraId) {
+            const art = ARTWORKS[obraId];
+            if (!art) return;
 
-            // ===== 3) UI refs =====
-            const viewerEl = document.getElementById("viewer");
-            const artImg = document.getElementById("artImg");
-            const artTitle = document.getElementById("artTitle");
-            const artDesc = document.getElementById("artDesc");
-            const artAudio = document.getElementById("artAudio");
-            const artInfo = document.getElementById("artInfo");
-            const btnVolver = document.getElementById("btnVolver");
+            // parar audio anterior
+            artAudio.pause();
+            artAudio.currentTime = 0;
 
-            const nfcStatus = document.getElementById("nfcStatus");
-            const lastRead = document.getElementById("lastRead");
-            const lastKeyEl = document.getElementById("lastKey");
+            const level = getDescriptionLevelFromSpeed(currentAvgSpeed);
+            artDesc.textContent = art.descriptions[level];
 
-            // ===== 4) Lógica de abrir obra =====
-            async function openArtworkById(obraId) {
-                const art = ARTWORKS[obraId];
-                if (!art) return;
+            artImg.src = art.img;
+            artImg.alt = art.title;
+            artTitle.textContent = art.title;
+            artAudio.src = art.audio;
+            artInfo.innerHTML = (art.info || [])
+                .map((x) => `<span class="pill">${x}</span>`)
+                .join("");
 
-                const level = getDescriptionLevelFromSpeed(currentAvgSpeed);
-                artDesc.textContent = art.descriptions[level];
+            viewerEl.classList.add("visible");
+            viewerEl.setAttribute("aria-hidden", "false");
+            btnVolver.focus(); // accesibilidad
 
-                artImg.src = art.img;
-                artImg.alt = art.title;
-                artTitle.textContent = art.title;
-                artAudio.src = art.audio;
-                artInfo.innerHTML = (art.info || [])
-                    .map((x) => `<span class="pill">${x}</span>`)
-                    .join("");
+            try {
+                await artAudio.play();
+            } catch {
+                // el usuario puede necesitar tocar el botón de play
+            }
+        }
 
-                viewerEl.classList.add("visible");
-                viewerEl.setAttribute("aria-hidden", "false");
+        function closeViewer() {
+            artAudio.pause();
+            viewerEl.classList.remove("visible");
+            viewerEl.setAttribute("aria-hidden", "true");
+        }
 
+        function getDescriptionLevelFromSpeed(v) {
+            if (v > SPEED_THRESHOLDS.short) return "short";
+            if (v > SPEED_THRESHOLDS.medium) return "medium";
+            return "long";
+        }
+
+        function closeViewer() {
+            artAudio.pause();
+            viewerEl.classList.remove("visible");
+            viewerEl.setAttribute("aria-hidden", "true");
+        }
+
+        btnVolver.addEventListener("click", closeViewer);
+
+        // ===== 5) Web NFC: escaneo continuo =====
+        let ndef;
+        let lastKey = null;
+        let lastAt = 0;
+        const DUP_MS = 1500; // ignora lecturas idénticas durante este tiempo
+
+        function setStatus(txt) {
+            nfcStatus.textContent = txt;
+        }
+
+        function keyFromEvent(ev) {
+            // 1) UID si está disponible
+            if (ev.serialNumber) return `uid:${ev.serialNumber}`;
+
+            // 2) Primer registro NDEF (text/url) si existe
+            const msg = ev.message;
+            if (msg && msg.records && msg.records.length) {
+                const r = msg.records[0];
                 try {
-                    await artAudio.play();
-                } catch {}
+                    if (r.recordType === "text") {
+                        const dec = new TextDecoder(
+                            r.encoding || "utf-8",
+                        ).decode(r.data);
+                        return `text:${dec.trim()}`;
+                    } else if (r.recordType === "url") {
+                        const url = new TextDecoder().decode(r.data).trim();
+                        return `url:${url}`;
+                    }
+                } catch { }
             }
 
-            function getDescriptionLevelFromSpeed(v) {
-                // > short → corta
-                if (v > SPEED_THRESHOLDS.short) return "short";
+            return null;
+        }
 
-                // > medium → intermedia
-                if (v > SPEED_THRESHOLDS.medium) return "medium";
+        let isScanning = false;
 
-                // lo demás → larga
-                return "long";
+        async function startScan() {
+            if (!("NDEFReader" in window)) {
+                setStatus("no soportado");
+                alert("Este navegador no soporta Web NFC. Usa Chrome en Android y sirve por HTTPS.");
+                return;
             }
 
-            function closeViewer() {
-                artAudio.pause();
-                viewerEl.classList.remove("visible");
-                viewerEl.setAttribute("aria-hidden", "true");
+            if (isScanning) return;
+
+            try {
+                ndef = new NDEFReader();
+                await ndef.scan();
+                isScanning = true;
+                setStatus("escaneando");
+
+                ndef.onreading = handleNfcReading;
+                ndef.onreadingerror = () => setStatus("error lectura");
+            } catch (err) {
+                isScanning = false;
+                setStatus("error");
+                console.warn("Error NFC:", err);
+                // reintento suave opcional
+                // setTimeout(() => startScan().catch(() => {}), 2000);
             }
+        }
 
-            btnVolver.addEventListener("click", closeViewer);
+        function handleNfcReading(event) {
+            const key = keyFromEvent(event);
+            if (!key) return;
 
-            // ===== 5) Web NFC: escaneo continuo =====
-            let ndef;
-            let lastKey = null;
-            let lastAt = 0;
-            const DUP_MS = 1500; // ignora lecturas idénticas durante este tiempo
+            const now = Date.now();
+            if (key === lastKey && now - lastAt < DUP_MS) return;
 
-            function setStatus(txt) {
-                nfcStatus.textContent = txt;
-            }
+            lastKey = key;
+            lastAt = now;
 
-            function keyFromEvent(ev) {
-                // 1) UID si está disponible
-                if (ev.serialNumber) return `uid:${ev.serialNumber}`;
+            lastRead.hidden = false;
+            lastKeyEl.textContent = key;
 
-                // 2) Primer registro NDEF (text/url) si existe
-                const msg = ev.message;
-                if (msg && msg.records && msg.records.length) {
-                    const r = msg.records[0];
-                    try {
-                        if (r.recordType === "text") {
-                            const dec = new TextDecoder(
-                                r.encoding || "utf-8",
-                            ).decode(r.data);
-                            return `text:${dec.trim()}`;
-                        } else if (r.recordType === "url") {
-                            const url = new TextDecoder().decode(r.data).trim();
-                            return `url:${url}`;
-                        }
-                    } catch {}
-                }
+            const obraId = NFC_MAP[key];
+            if (obraId) openArtworkById(obraId);
+        }
 
-                return null;
-            }
 
-            async function startScan() {
-                if (!("NDEFReader" in window)) {
-                    setStatus("no soportado");
-                    alert(
-                        "Este navegador no soporta Web NFC. Usa Chrome en Android y sirve por HTTPS.",
-                    );
-                    return;
-                }
+        // Arranca el escaneo al cargar (si el navegador lo permite).
+        // Para máxima compatibilidad, puedes gatearlo detrás de un clic inicial si hace falta:
+        document.addEventListener("DOMContentLoaded", () => {
+            startScan();
+            startAcceleration();
+        });
 
-                try {
-                    ndef = new NDEFReader();
-                    await ndef.scan(); // requiere gesto del usuario en muchos casos (pero Chrome permite iniciar en interacción previa)
-                    setStatus("escaneando");
-                    ndef.onreading = async (event) => {
-                        const key = keyFromEvent(event);
-                        if (!key) return;
-
-                        // Debounce de lecturas idénticas
-                        const now = Date.now();
-                        if (key === lastKey && now - lastAt < DUP_MS) return;
-                        lastKey = key;
-                        lastAt = now;
-
-                        // Mostrar último
-                        lastRead.hidden = false;
-                        lastKeyEl.textContent = key;
-
-                        const obraId = NFC_MAP[key];
-                        if (obraId) {
-                            await openArtworkById(obraId);
-                        }
-                    };
-                    ndef.onreadingerror = () => {
-                        setStatus("error lectura");
-                    };
-                } catch (err) {
-                    setStatus("error");
-                    console.warn("Error NFC:", err);
-                    // reintenta brevemente si es posible
-                    setTimeout(() => startScan().catch(() => {}), 2000);
-                }
-            }
-
-            // Arranca el escaneo al cargar (si el navegador lo permite).
-            // Para máxima compatibilidad, puedes gatearlo detrás de un clic inicial si hace falta:
-            document.addEventListener("DOMContentLoaded", () => {
+        // Reintento al volver al tab (Android a veces pausa NFC)
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
                 startScan();
-            });
+            }
+        });
 
-            // Reintento al volver al tab (Android a veces pausa NFC)
-            document.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "visible" && ndef) {
-                    // intentar reiniciar el escaneo si se detuvo
-                    startScan();
-                }
-            });
-            // ===== 7) Velocidad promedio usando el acelerómetro =====
+        // ===== 7) Velocidad promedio usando el acelerómetro =====
 
-            // Referencia al span de velocidad
-            const avgSpeedEl = document.getElementById("avgSpeed");
+        // Referencia al span de velocidad
+        const avgSpeedEl = document.getElementById("avgSpeed");
 
-            // Estado para integrar aceleración -> velocidad
-            let vx = 0,
-                vy = 0,
-                vz = 0; // componentes de velocidad
-            let lastTimestamp = null;
+        // Estado para integrar aceleración -> velocidad
+        let vx = 0,
+            vy = 0,
+            vz = 0; // componentes de velocidad
+        let lastTimestamp = null;
 
-            // Ventana deslizante para promedio (últimos 5 s)
-            const WINDOW_MS = 5000;
-            const speedSamples = []; // { t, v }
+        // Ventana deslizante para promedio (últimos 5 s)
+        const WINDOW_MS = 5000;
+        const speedSamples = []; // { t, v }
 
-            // Función para actualizar el texto en pantalla
-            let currentAvgSpeed = 0; // velocidad global compartida
+        // Función para actualizar el texto en pantalla
+        let currentAvgSpeed = 0; // velocidad global compartida
 
-            function renderAvgSpeed() {
-                if (speedSamples.length === 0) {
-                    avgSpeedEl.textContent = "0.0";
-                    currentAvgSpeed = 0;
-                    return;
-                }
-
-                let sum = 0;
-                for (const s of speedSamples) sum += s.v;
-                const avg = sum / speedSamples.length;
-
-                currentAvgSpeed = avg; // <-- guardamos la velocidad global
-
-                avgSpeedEl.textContent = avg.toFixed(2);
+        function renderAvgSpeed() {
+            if (speedSamples.length === 0) {
+                avgSpeedEl.textContent = "0.0";
+                currentAvgSpeed = 0;
+                return;
             }
 
-            function startAcceleration() {
-                if (!Protobject?.Acceleration) {
-                    console.warn(
-                        "Acceleration component no disponible en Protobject.",
-                    );
-                    return;
-                }
+            let sum = 0;
+            for (const s of speedSamples) sum += s.v;
+            const avg = sum / speedSamples.length;
 
-                // Pedimos datos cada ~200 ms
-                Protobject.Acceleration.start(200);
+            currentAvgSpeed = avg; // <-- guardamos la velocidad global
 
-                Protobject.Acceleration.onData((data) => {
-                    const now = Date.now();
+            avgSpeedEl.textContent = avg.toFixed(2);
+        }
 
-                    if (lastTimestamp == null) {
-                        lastTimestamp = now;
-                        return;
-                    }
+        function startAcceleration() {
+            if (!Protobject?.Acceleration) {
+                console.warn(
+                    "Acceleration component no disponible en Protobject.",
+                );
+                return;
+            }
 
-                    const dt = (now - lastTimestamp) / 1000; // segundos
+            // Pedimos datos cada ~200 ms
+            Protobject.Acceleration.start(200);
+
+            Protobject.Acceleration.onData((data) => {
+                const now = Date.now();
+
+                if (lastTimestamp == null) {
                     lastTimestamp = now;
+                    return;
+                }
 
-                    // Aceleración en cada eje (en m/s^2 normalmente)
-                    const ax = data.x;
-                    const ay = data.y;
-                    const az = data.z;
+                const dt = (now - lastTimestamp) / 1000; // segundos
+                lastTimestamp = now;
 
-                    // Integración sencilla: v(t) = v(t-1) + a * dt
-                    vx += ax * dt;
-                    vy += ay * dt;
-                    vz += az * dt;
+                // Aceleración en cada eje (en m/s^2 normalmente)
+                const ax = data.x;
+                const ay = data.y;
+                const az = data.z;
 
-                    // Módulo de la velocidad (m/s)
-                    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                // Integración sencilla: v(t) = v(t-1) + a * dt
+                vx += ax * dt;
+                vy += ay * dt;
+                vz += az * dt;
 
-                    // Guardar muestra en la ventana deslizante
-                    speedSamples.push({ t: now, v: speed });
+                // Módulo de la velocidad (m/s)
+                const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
 
-                    // Eliminar muestras más antiguas que WINDOW_MS
-                    const cutoff = now - WINDOW_MS;
-                    while (speedSamples.length && speedSamples[0].t < cutoff) {
-                        speedSamples.shift();
-                    }
+                // Guardar muestra en la ventana deslizante
+                speedSamples.push({ t: now, v: speed });
 
-                    // Actualizar texto en pantalla
-                    renderAvgSpeed();
-                });
-            }
+                // Eliminar muestras más antiguas que WINDOW_MS
+                const cutoff = now - WINDOW_MS;
+                while (speedSamples.length && speedSamples[0].t < cutoff) {
+                    speedSamples.shift();
+                }
 
-            // Lanza el acelerómetro al cargar la página
-            document.addEventListener("DOMContentLoaded", () => {
-                startAcceleration();
+                // Actualizar texto en pantalla
+                renderAvgSpeed();
             });
-        </script>
-    </body>
+        }
+    </script>
+</body>
+
 </html>

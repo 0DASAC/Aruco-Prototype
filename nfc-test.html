@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>NFC Debug</title>
+</head>
+
+<body>
+  <h1>NFC Debug</h1>
+  <p>Acerca una etiqueta NFC y se mostrará su UID aquí:</p>
+
+  <h2>Estado: <span id="status">inactivo</span></h2>
+  <h2>UID: <span id="uid">—</span></h2>
+
+  <button id="btnScan">Iniciar lectura NFC</button>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const uidEl = document.getElementById("uid");
+    const btn = document.getElementById("btnScan");
+
+    btn.addEventListener("click", async () => {
+      if (!("NDEFReader" in window)) {
+        statusEl.textContent = "NFC no soportado";
+        alert("Este navegador no soporta Web NFC. Usa Chrome en Android.");
+        return;
+      }
+
+      try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        statusEl.textContent = "escaneando…";
+
+        ndef.onreading = (event) => {
+          if (event.serialNumber) {
+            uidEl.textContent = event.serialNumber;
+          } else {
+            uidEl.textContent = "(sin UID disponible)";
+          }
+        };
+
+        ndef.onreadingerror = () => {
+          statusEl.textContent = "error leyendo";
+        };
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "error";
+      }
+    });
+  </script>
+</body>
+</html>

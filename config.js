@@ -1,8 +1,8 @@
 Protobject.setProduction(true);
 Protobject.initialize([
   {
-    name: "Camera",
-    page: "camera.html",
+    name: "Lector",
+    page: "index.html",
     debug: "local",
   },
   {
